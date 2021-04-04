@@ -1,0 +1,824 @@
+---
+title: "UNESCO World Heritage Sites 2019 - EDA & Visualization"
+author: "Syabaruddin Malik"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  prettydoc::html_pretty:
+      theme: leonids
+      highlight: github
+      df_print : paged
+ 
+
+
+---
+
+A UNESCO World Heritage Site is a site that has been nominated for the United Nations Educational, Scientific and Cultural Organization's International World Heritage program. The program aims to catalogue and preserve sites of outstanding importance, either cultural or natural, to the common heritage of humankind.
+
+![](C:\SyabaruddinFolder\Work\Algoritma\DATAVIZcourse\InteractivePlot\LBB/moai.jpg)
+
+A World Heritage Site is a landmark or area with legal protection by an international convention guarded by the United Nations Educational, Scientific and Cultural Organization (UNESCO). World Heritage Sites are designated by UNESCO for having cultural, historical, scientific or other forms of significance. The sites are judged to contain "cultural and natural heritage around the world considered to be of outstanding value to humanity." To be selected, a World Heritage Site must be a somehow unique landmark which is geographically and historically identifiable and has special cultural or physical significance. For example, World Heritage Sites might be ancient ruins or historical structures, buildings, cities, deserts, forests, islands, lakes, monuments, mountains, or wilderness areas. As of June 2020, a total of 1,121 World Heritage Sites (869 cultural, 213 natural, and 39 mixed properties) exist across 167 countries; the three countries with most sites are China, Italy (both 55) and Spain (48).
+
+![](C:\SyabaruddinFolder\Work\Algoritma\DATAVIZcourse\InteractivePlot\LBB/borobudur.jpg)
+
+This dataset contains spatial data of 1121 World Heritage Sites that were listed into the World Heritage List by UNESCO. Data collected from whc.unesco.org
+
+# Data Exploration 
+
+Before we do the exploratory and explanatory data analysis, we will install all the library needed to support the data analysis.
+
+```{r warning=FALSE,message=FALSE}
+library(lubridate)
+library(scales)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(tidyr)
+library(glue)
+library(viridis)
+library(leaflet)
+library(treemapify)
+library(skimr)
+library(DT)
+library(reshape2)
+```
+
+After we install the libraries, we call the data ,check all the detail of the data, change the incorrect data types and drop the unused columns for further analysis
+
+```{r warning=FALSE,message=FALSE}
+wh <-
+  read_csv("C:/SyabaruddinFolder/Work/Algoritma/DATAVIZcourse/InteractivePlot/LBB/wh.csv")
+
+whc <- wh %>%
+  mutate(
+    category = as.factor(category),
+    country = as.factor(states_name_en),
+    region = as.factor(region_en),
+    date_recorded = year(as.Date(as.character(date_inscribed), format = "%Y")),
+    name = name_en,
+    danger = as.factor(danger)
+  ) %>%
+  select(category,
+         country,
+         region,
+         name,
+         date_recorded,
+         danger,
+         longitude,
+         latitude) %>%
+  filter(
+    region == "Europe and North America" |
+      region == "Asia and the Pacific" |
+      region == "Latin America and the Caribbean" |
+      region == "Africa" |
+      region == "Arab States"
+  )
+
+datatable(whc)
+
+```
+Now let us recheck the data types for every columns
+
+```{r}
+glimpse(whc)
+```
+Great, all the data types is already correct. Now let us check if there is any missing value.
+
+```{r}
+colSums(is.na(whc))
+
+```
+Great, No missing value and now the data set is ready to be analyzed.
+
+
+# Analysis and Visualization
+
+In this section, The visualization will be divided by 2 section, global section and regional section. 
+
+## Global
+
+Let us check the World Heritage Sites by Category globally
+
+```{r message=F,warning=F}
+whcat <- whc %>%
+  group_by(category) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue("Category: {category}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(category, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Category Globally",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+If we look at the graph above, Most of World Heritage Sites is Cultural sites with 868 sites.
+
+Next, Let us take a look at World Heritage Sites by Region.
+
+
+```{r}
+whreg <- whc %>%
+  group_by(region) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue("Region: {region}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(region, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = region), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whreg, tooltip = "text") %>%  layout(showlegend = F)
+
+```
+If we look at the graph above, Most of World Heritage Sites is located in Europe and North America region with 528 sites.
+
+Next, Let us take a look at the danger status of World Heritage Sites.
+
+```{r}
+whdang <- whc %>% 
+  group_by(danger) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(x=reorder(danger,freq),y=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw()+
+  labs(title = "World Heritage Sites in Danger Globally",
+       y= "Number of Sites",
+       x= "")
+
+ggplotly(whdang,tooltip = "text") %>% layout(showlegend=F)
+```
+If we look at the graph above, most of the sites are in safe condition. There are only 53 sites that needs to be taken care.
+
+Now Let us take a look at how many Sites are registered as World Heritage by year as per region.
+
+```{r}
+whdate <- whc %>%
+  group_by(date_recorded,region) %>% 
+  summarise(freq=n()) %>% 
+  mutate(label=glue(
+    "Year Recorded: {date_recorded}
+     Region: {region}
+     Number of Sites: {freq}"
+  )) %>% 
+  ggplot(aes(x=date_recorded,y=freq,text=label,col=region,group=1))+
+  geom_line() + geom_point() +
+  labs(title="World Heritage Sites Registered by Year",
+       x="Registration Year",
+       y="Number of Sites") +
+  theme_bw()
+
+ggplotly(whdate,tooltip = "text") %>% layout(legend = list(
+  orientation = "h",
+  x = 0,
+  y = -0.3
+))
+```
+
+If we look at the curve above, the Europe and North America is above the other lines in terms of Sites registered by year. The least recorded is Arab sataes region
+
+Now lets take a look at the number of sites in below interactive map.
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whc$longitude,
+  lat = whc$latitude,
+  popup = whc$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+## Regional
+
+### Arab Region
+
+Let us check the number of World Heritage Sites in Arab region countries.
+
+```{r}
+whregar <- whc %>%
+  filter(region=="Arab States") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Arab Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whregar, tooltip = "text") %>%  layout(showlegend = F)
+```
+Most of World Heritage Sites in Arab Region is located in Morocco
+
+Now lets check the distribution of the sites in Arab region, as shown in map below
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wharab <-whc %>%
+  filter(region=="Arab States")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wharab$longitude,
+  lat = wharab$latitude,
+  popup = wharab$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+
+Let us check the World Heritage Sites by Category in Arab region
+
+```{r message=F,warning=F}
+whar <- whc %>%
+  filter(region=="Arab States") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Arab Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whar, tooltip = "text") %>%  layout(showlegend = F)
+```
+If we look at above graph, most of the sites in Arab Region is Cultural sites.
+
+Next, Let us take a look at the danger status of World Heritage Sites in Arab Region
+
+```{r message=F,warning=F}
+whdangarab <- whc %>% 
+  filter(region=="Arab States") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw()+
+  labs(title = "World Heritage Sites Danger Status in Arab Region",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdangarab,tooltip = "text") %>% layout(showlegend=F)
+```
+Based on graph above, some sites found in Arab Region are in Danger Status. The most number sites in danger status are in Syirian and Libya. This is predictable since these countries are war zone.
+
+### Africa
+
+Let us check the number of World Heritage Sites in Africa region countries.
+
+```{r}
+whregaf <- whc %>%
+  filter(region=="Africa") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Africa Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whregaf, tooltip = "text") %>%  layout(showlegend = F)
+```
+Most of World Heritage Sites in Africa Region is located in South Africa and Ethiopia
+
+Now lets check the distribution of the sites in Africa region, as shown in map below
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wharafrica <-whc %>%
+  filter(region=="Africa")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wharafrica$longitude,
+  lat = wharafrica$latitude,
+  popup = wharafrica$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+
+Let us check the World Heritage Sites by Category in Africa region
+
+```{r message=F,warning=F}
+wharcat <- whc %>%
+  filter(region=="Africa") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Africa Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(wharcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+If we look at above graph, there is a balance of the sites in Africa Region both Cultural sites and Natural sites. Most of Natural Sites are located in Democratic Republic of the Congo, while Cultural Sites most located in Ethiopia
+
+Next, Let us take a look at the danger status of World Heritage Sites in Africa Region
+
+```{r message=F,warning=F}
+whdangarab <- whc %>% 
+  filter(region=="Africa") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "World Heritage Sites Danger Status in Africa Region",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdangarab,tooltip = "text") %>% layout(showlegend=F)
+```
+Based on graph above, mostly sites are in safe condition, howeversome sites found in Africa Region are in Danger Status. The most number sites in danger status are in Democratic of Congo and Mali. This is predictable since these countries are war zone.
+
+### Latin America and the Caribbean
+
+Let us check the number of World Heritage Sites in Latin America and the Caribbean region countries.
+
+```{r}
+whlat <- whc %>%
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Latin America and the Caribbean Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whlat, tooltip = "text") %>%  layout(showlegend = F)
+```
+Most of World Heritage Sites in Latin America and the Caribbean Region is located in Mexico
+
+Now lets check the distribution of the sites in Latin America and the Caribbean region, as shown in map below
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+whlatin <-whc %>%
+  filter(region=="Latin America and the Caribbean")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whlatin$longitude,
+  lat = whlatin$latitude,
+  popup = whlatin$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+
+Let us check the World Heritage Sites by Category in Latin America and the Caribbean region
+
+```{r message=F,warning=F}
+whlcat <- whc %>%
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Latin America and the Caribbean Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whlcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+If we look at above graph, most of the sites in Latin America and the Caribbean Region is Cultural sites. However there are many Natural Sites also. 
+
+Next, Let us take a look at the danger status of World Heritage Sites in Latin America and the Caribbean Region
+
+```{r message=F,warning=F}
+whdanglat <- whc %>% 
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw()+
+  labs(title = "World Heritage Sites Danger Status in Latin America and the Caribbean Region",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdanglat,tooltip = "text") %>% layout(showlegend=F)
+```
+Based on graph above, Mostly sites found in Latin America and the Caribbean Region are in safe Status.
+
+### Asia and the Pacific
+
+Let us check the number of World Heritage Sites in Asia and the Pacific region countries.
+
+```{r}
+whas <- whc %>%
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Asia and the Pacific Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whas, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+Most of World Heritage Sites in Asia and the Pacific Region is located in China and India
+
+Now lets check the distribution of the sites in Asia and the Pacific region, as shown in map below
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+whasia <-whc %>%
+  filter(region=="Asia and the Pacific")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whasia$longitude,
+  lat = whasia$latitude,
+  popup = whasia$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic,
+  label = whasia$name,
+  
+)
+ 
+
+map
+```
+
+
+Let us check the World Heritage Sites by Category in Asia and the Pacific region
+
+```{r message=F,warning=F}
+whapac <- whc %>%
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Asia and the Pacific Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whapac, tooltip = "text") %>%  layout(showlegend = F)
+```
+If we look at above graph, there is a balance of the sites in Asia and the Pacific Region both Cultural sites and Natural sites. Most of Natural Sites are located in China and Australia, while Cultural Sites most located in China and India
+
+Next, Let us take a look at the danger status of World Heritage Sites in Asia and the Pacific Region
+
+```{r message=F,warning=F}
+whasiapac <- whc %>% 
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "World Heritage Sites Danger Status in Asia and the Pacific Region",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whasiapac,tooltip = "text") %>% layout(showlegend=F)
+```
+Based on graph above, mostly sites are in safe condition.
+
+### Latin America and the Caribbean
+
+Let us check the number of World Heritage Sites in Latin America and the Caribbean region countries.
+
+```{r}
+whe <- whc %>%
+  filter(region=="Europe and North America") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  filter(freq>5) %>% 
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Europe and North America Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whe, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+Most of World Heritage Sites in Europe and North America Region is located in Italy, Spain, France, Germany.
+
+Now lets check the distribution of the sites in Europe and North America region, as shown in map below
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wheu <-whc %>%
+  filter(region=="Europe and North America")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wheu$longitude,
+  lat = wheu$latitude,
+  popup = wheu$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+
+Let us check the World Heritage Sites by Category in Europe and North America region
+
+```{r message=F,warning=F}
+wheuro <- whc %>%
+  filter(region=="Europe and North America") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  filter(freq>3) %>% 
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Europe and North America Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(wheuro, tooltip = "text") %>%  layout(showlegend = F)
+```
+If we look at above graph, Most the sites in Europe and North America Region Cultural sites . Most of Cultural Sites are in Italy, Spain, Germany, France.
+
+Next, Let us take a look at the danger status of World Heritage Sites in Europe and North America Region
+
+```{r message=F,warning=F}
+wheurope <- whc %>% 
+  filter(region=="Europe and North America") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  filter(freq>1) %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger 
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "World Heritage Sites Danger Status in Europe and North America Region",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(wheurope,tooltip = "text") %>% layout(showlegend=F)
+```
+Based on graph above, Most sites are in safe condition.
+
+
+
+
+
+
+
+
+

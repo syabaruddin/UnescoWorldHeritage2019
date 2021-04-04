@@ -1,0 +1,784 @@
+---
+title: "UNESCO World Heritage Sites 2019"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: spacelab
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+```{r warning=FALSE,message=FALSE}
+library(lubridate)
+library(scales)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(plotly)
+library(tidyr)
+library(glue)
+library(viridis)
+library(leaflet)
+library(treemapify)
+library(skimr)
+library(DT)
+library(reshape2)
+```
+
+```{r warning=FALSE,message=FALSE}
+wh <-
+  read_csv("C:/SyabaruddinFolder/Work/Algoritma/DATAVIZcourse/InteractivePlot/LBB/wh.csv")
+
+whc <- wh %>%
+  mutate(
+    category = as.factor(category),
+    country = as.factor(states_name_en),
+    region = as.factor(region_en),
+    date_recorded = year(as.Date(as.character(date_inscribed), format = "%Y")),
+    name = name_en,
+    danger = as.factor(danger)
+  ) %>%
+  select(category,
+         country,
+         region,
+         name,
+         date_recorded,
+         danger,
+         longitude,
+         latitude) %>%
+  filter(
+    region == "Europe and North America" |
+      region == "Asia and the Pacific" |
+      region == "Latin America and the Caribbean" |
+      region == "Africa" |
+      region == "Arab States"
+  )
+
+
+```
+
+
+
+
+
+Global   {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Category Globally
+
+```{r}
+whcat <- whc %>%
+  group_by(category) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue("Category: {category}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(category, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whc$longitude,
+  lat = whc$latitude,
+  popup = whc$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Region Globally
+
+```{r}
+whreg <- whc %>%
+  group_by(region) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue("Region: {region}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(region, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = region), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whreg, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Registered by Year
+
+```{r}
+whdate <- whc %>%
+  group_by(date_recorded,region) %>% 
+  summarise(freq=n()) %>% 
+  mutate(label=glue(
+    "Year Recorded: {date_recorded}
+     Region: {region}
+     Number of Sites: {freq}"
+  )) %>% 
+  ggplot(aes(x=date_recorded,y=freq,text=label,col=region,group=1))+
+  geom_line() + geom_point() +
+  labs(title="",
+       x="Registration Year",
+       y="Number of Sites") +
+  theme_bw()
+
+ggplotly(whdate,tooltip = "text") %>% layout(legend = list(
+  orientation = "h",
+  x = 0,
+  y = -0.3
+))
+```
+
+
+Asia & The Pacific  {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Asia and the Pacific Region Countries
+
+```{r}
+whas <- whc %>%
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whas, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map Asia and The Pacific Region
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+whasia <-whc %>%
+  filter(region=="Asia and the Pacific")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whasia$longitude,
+  lat = whasia$latitude,
+  popup = whasia$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic,
+  label = whasia$name,
+  
+)
+ 
+
+map
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Category in Asia and the Pacific Region
+
+```{r}
+whapac <- whc %>%
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whapac, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Danger Status in Asia and the Pacific Region
+
+```{r}
+whasiapac <- whc %>% 
+  filter(region=="Asia and the Pacific") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whasiapac,tooltip = "text") %>% layout(showlegend=F)
+```
+
+Europe & North America  {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Europe and North America Region Countries
+
+```{r}
+whe <- whc %>%
+  filter(region=="Europe and North America") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  filter(freq>5) %>% 
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whe, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map Europe and North America Region 
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wheu <-whc %>%
+  filter(region=="Europe and North America")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wheu$longitude,
+  lat = wheu$latitude,
+  popup = wheu$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+
+### World Heritage Sites by Category in Europe and North America Region
+
+```{r}
+wheuro <- whc %>%
+  filter(region=="Europe and North America") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  filter(freq>3) %>% 
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(wheuro, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Danger Status in Europe and North America Region
+
+```{r}
+wheurope <- whc %>% 
+  filter(region=="Europe and North America") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  filter(freq>1) %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger 
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(wheurope,tooltip = "text") %>% layout(showlegend=F)
+```
+
+Latin America & The Caribbean  {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Latin America and the Caribbean Region Countries
+
+```{r}
+whlat <- whc %>%
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whlat, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map Latin America and the Caribbean Region 
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+whlatin <-whc %>%
+  filter(region=="Latin America and the Caribbean")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = whlatin$longitude,
+  lat = whlatin$latitude,
+  popup = whlatin$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Category in Latin America and the Caribbean Region
+
+```{r}
+whlcat <- whc %>%
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whlcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Danger Status in Latin America and the Caribbean Region
+
+```{r}
+whdanglat <- whc %>% 
+  filter(region=="Latin America and the Caribbean") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw()+
+  labs(title = "",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdanglat,tooltip = "text") %>% layout(showlegend=F)
+```
+
+Africa  {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Africa Region Countries
+
+```{r}
+whregaf <- whc %>%
+  filter(region=="Africa") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  theme_bw() +
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whregaf, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map Africa Region 
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wharafrica <-whc %>%
+  filter(region=="Africa")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wharafrica$longitude,
+  lat = wharafrica$latitude,
+  popup = wharafrica$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Category in Africa Region
+
+```{r}
+wharcat <- whc %>%
+  filter(region=="Africa") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "World Heritage Sites by Category in Africa Region",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(wharcat, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Danger Status in Africa Region
+
+```{r}
+whdangarab <- whc %>% 
+  filter(region=="Africa") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+
+  theme_bw()+
+  labs(title = "",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdangarab,tooltip = "text") %>% layout(showlegend=F)
+```
+
+Arab States  {data-icon="fa-globe-americas"}
+=======================================================================
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Arab Region Countries
+
+```{r}
+whregar <- whc %>%
+  filter(region=="Arab States") %>% 
+  group_by(country) %>%
+  summarise(freq = n()) %>%
+  mutate(label = glue(
+    "Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = country), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw() +
+  labs(title = "World Heritage Sites by Arab Region Countries",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whregar, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Distribution Map Arab Region 
+
+```{r}
+Pic <- makeIcon(
+  iconUrl = "images (1).png",
+  iconWidth = 100 * 0.35,
+  iconHeight = 100 * 0.35
+)
+
+wharab <-whc %>%
+  filter(region=="Arab States")
+
+map <- leaflet()
+map <- addTiles(map)
+
+map <- addMarkers(
+  map,
+  lng = wharab$longitude,
+  lat = wharab$latitude,
+  popup = wharab$name,
+  clusterOptions = markerClusterOptions(),
+  icon = Pic
+)
+
+map
+```
+
+Column {data-width=500}
+-----------------------------------------------------------------------
+
+### World Heritage Sites by Category in Arab Region
+
+```{r}
+whar <- whc %>%
+  filter(region=="Arab States") %>% 
+  group_by(category,country) %>%
+  summarise(freq = n())  %>%
+  mutate(label = glue(
+    "Category: {category}
+     Country: {country}
+     Number of sites: {freq}")) %>%
+  ggplot(aes(
+    y = reorder(country, freq),
+    x = freq,
+    text = label
+  )) +
+  geom_col(aes(fill = category), show.legend = F) +
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  facet_grid(~category)+
+  theme_bw() +
+  
+  labs(title = "",
+       x = "Number of Sites",
+       y = "")
+
+
+ggplotly(whar, tooltip = "text") %>%  layout(showlegend = F)
+```
+
+### World Heritage Sites Danger Status in Arab Region
+
+```{r}
+whdangarab <- whc %>% 
+  filter(region=="Arab States") %>% 
+  group_by(danger,country) %>% 
+  summarise(freq=n())  %>% 
+  mutate(label=glue(
+    "Status: {danger}
+     1 = Danger
+     0 = Reserved
+     Country : {country}
+     Number of sites: {freq}
+     "
+  )) %>% 
+  ggplot(aes(y=reorder(country,freq),x=freq, text=label)) + 
+  geom_col(aes(fill=danger)) +
+  facet_grid(~danger)+
+  scale_fill_viridis(discrete = TRUE) +
+  scale_color_viridis(discrete = TRUE) +
+  theme_bw()+
+  labs(title = "",
+       y= "",
+       x= "Number of Sites")
+
+ggplotly(whdangarab,tooltip = "text") %>% layout(showlegend=F)
+```
+
+
+Data Table {data-icon="fa-table"}
+=======================================================================
+
+Column {data-width=1000}
+-----------------------------------------------------------------------
+
+```{r}
+datatable(whc)
+
+```
+
